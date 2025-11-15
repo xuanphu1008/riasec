@@ -5,308 +5,527 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trắc nghiệm Hướng nghiệp RIASEC</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.10.0/dist/Recharts.js"></script>
+    <style>
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 300px;
+            padding: 20px;
+            gap: 15px;
+        }
+        .bar-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .bar {
+            width: 100%;
+            background: linear-gradient(180deg, var(--bar-color) 0%, var(--bar-color-dark) 100%);
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            padding-bottom: 10px;
+        }
+        .bar:hover {
+            opacity: 0.8;
+            transform: translateY(-5px);
+        }
+        .likert-option {
+            transition: all 0.2s ease;
+        }
+        .likert-option:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState } = React;
-        const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } = Recharts;
+    <script>
+        const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/l3w3hhxab5liu';
 
-        const RIASECCareerTest = () => {
-            const [page, setPage] = useState('intro');
-            const [answers, setAnswers] = useState({});
-            const [results, setResults] = useState(null);
-            const [loading, setLoading] = useState(false);
-            const [careerGoals, setCareerGoals] = useState({
-                name: '', class: '', career: '', skills: '', oneYearPlan: '', parentEmail: ''
+        const state = {
+            page: 'intro',
+            answers: {},
+            results: null,
+            loading: false,
+            careerGoals: {
+                name: '', 
+                class: '', 
+                career: '', 
+                skills: '', 
+                oneYearPlan: '', 
+                parentEmail: ''
+            }
+        };
+
+        const questions = [
+            { id: 1, text: "Tôi thích làm việc với máy móc, dụng cụ, sửa chữa đồ vật.", category: "R" },
+            { id: 2, text: "Tôi thích tham gia các hoạt động ngoài trời, thể thao, kỹ thuật thực hành.", category: "R" },
+            { id: 3, text: "Tôi vui khi lắp ráp đồ chơi, mô hình, hoặc sửa đồ trong nhà.", category: "R" },
+            { id: 4, text: "Tôi hứng thú với nghề nghiệp cần kỹ năng thực hành (thợ, kỹ sư).", category: "R" },
+            { id: 5, text: "Tôi thích khám phá công cụ kỹ thuật mới (điện, máy, robot).", category: "R" },
+            
+            { id: 6, text: "Tôi thích tìm hiểu nguyên nhân của các hiện tượng tự nhiên.", category: "I" },
+            { id: 7, text: "Tôi thích đọc sách khoa học, làm thí nghiệm nhỏ để khám phá.", category: "I" },
+            { id: 8, text: "Tôi thích suy nghĩ, phân tích, tìm lời giải cho vấn đề.", category: "I" },
+            { id: 9, text: "Tôi thích nghiên cứu, đặt câu hỏi 'tại sao' và tìm bằng chứng.", category: "I" },
+            { id: 10, text: "Tôi tò mò về cách mọi thứ hoạt động và muốn tìm hiểu sâu hơn.", category: "I" },
+            
+            { id: 11, text: "Tôi thích vẽ, làm đồ thủ công, thiết kế sáng tạo.", category: "A" },
+            { id: 12, text: "Tôi cảm thấy vui khi tạo ra bức tranh, bài hát hoặc câu chuyện.", category: "A" },
+            { id: 13, text: "Tôi muốn làm những việc liên quan đến nghệ thuật, sân khấu.", category: "A" },
+            { id: 14, text: "Tôi thích thiết kế trang trí, phối màu, sáng tạo hình ảnh.", category: "A" },
+            { id: 15, text: "Tôi muốn thử làm sản phẩm thủ công để trưng bày.", category: "A" },
+            
+            { id: 16, text: "Tôi thích hướng dẫn và giúp đỡ bạn bè khi họ học.", category: "S" },
+            { id: 17, text: "Tôi thích làm việc nhóm để chăm sóc, hỗ trợ người khác.", category: "S" },
+            { id: 18, text: "Tôi sẵn sàng lắng nghe và tư vấn khi người khác gặp khó khăn.", category: "S" },
+            { id: 19, text: "Tôi thích tham gia hoạt động cộng đồng, giúp trẻ nhỏ hoặc người già.", category: "S" },
+            { id: 20, text: "Tôi thích trao đổi, lắng nghe và giải bài toán cuộc sống của người khác.", category: "S" },
+            
+            { id: 21, text: "Tôi thích thuyết trình, thuyết phục hoặc tổ chức sự kiện nhỏ.", category: "E" },
+            { id: 22, text: "Tôi muốn quản lý một dự án nhỏ hoặc bán hàng khi có dịp.", category: "E" },
+            { id: 23, text: "Tôi hay có ý tưởng bắt đầu một hoạt động hoặc dự án nhỏ.", category: "E" },
+            { id: 24, text: "Tôi tự tin khi phải thuyết phục mọi người làm theo ý mình.", category: "E" },
+            { id: 25, text: "Tôi có mong muốn thử lập một gian hàng hoặc bán sản phẩm nhỏ.", category: "E" },
+            
+            { id: 26, text: "Tôi thích làm việc theo quy tắc, sắp xếp giấy tờ hoặc lập danh sách.", category: "C" },
+            { id: 27, text: "Tôi cảm thấy an tâm khi công việc rõ ràng, có quy trình.", category: "C" },
+            { id: 28, text: "Tôi thích làm công việc cần độ chính xác và theo hướng dẫn chi tiết.", category: "C" },
+            { id: 29, text: "Tôi thích công việc hành chính, sổ sách, lưu trữ tài liệu.", category: "C" },
+            { id: 30, text: "Tôi thích làm việc có trình tự, thực hiện theo danh sách công việc.", category: "C" }
+        ];
+
+        const likertScale = [
+            { value: 1, label: "Rất không thích", color: "from-red-500 to-red-600" },
+            { value: 2, label: "Không thích", color: "from-orange-500 to-orange-600" },
+            { value: 3, label: "Trung lập", color: "from-gray-500 to-gray-600" },
+            { value: 4, label: "Thích", color: "from-blue-500 to-blue-600" },
+            { value: 5, label: "Rất thích", color: "from-green-500 to-green-600" }
+        ];
+
+        const categoryInfo = {
+            R: { name: "Realistic - Thực tế", shortName: "Thực tế", color: "#3B82F6", colorDark: "#2563EB", icon: "🔧", description: "Bạn có khả năng làm việc với tay, thích hoạt động thực hành và kỹ thuật." },
+            I: { name: "Investigative - Nghiên cứu", shortName: "Nghiên cứu", color: "#8B5CF6", colorDark: "#7C3AED", icon: "🔬", description: "Bạn thích suy nghĩ, phân tích và tìm hiểu." },
+            A: { name: "Artistic - Nghệ thuật", shortName: "Nghệ thuật", color: "#EC4899", colorDark: "#DB2777", icon: "🎨", description: "Bạn có năng khiếu sáng tạo, thích nghệ thuật và thiết kế." },
+            S: { name: "Social - Xã hội", shortName: "Xã hội", color: "#10B981", colorDark: "#059669", icon: "👥", description: "Bạn thích làm việc với người khác, giúp đỡ và hỗ trợ." },
+            E: { name: "Enterprising - Quản lý", shortName: "Quản lý", color: "#F59E0B", colorDark: "#D97706", icon: "💼", description: "Bạn có khả năng lãnh đạo, thuyết phục và kinh doanh." },
+            C: { name: "Conventional - Quy tắc", shortName: "Quy tắc", color: "#6366F1", colorDark: "#4F46E5", icon: "📋", description: "Bạn thích làm việc có tổ chức, theo quy trình rõ ràng." }
+        };
+
+        const careerCombinations = {
+            'RIE': { title: 'Kỹ sư, Nhà nghiên cứu ứng dụng', desc: 'Phù hợp: Kỹ sư cơ khí, Kỹ sư điện, Nhà phát triển công nghệ' },
+            'RIC': { title: 'Kỹ thuật viên chuyên môn', desc: 'Phù hợp: Kỹ thuật viên y tế, Kiểm định viên, Kỹ thuật xây dựng' },
+            'RAE': { title: 'Thiết kế & Chế tác', desc: 'Phù hợp: Kiến trúc sư, Nhà thiết kế công nghiệp, Thợ thủ công cao cấp' },
+            'IRE': { title: 'Nghiên cứu khoa học ứng dụng', desc: 'Phù hợp: Nhà khoa học dữ liệu, Lập trình viên, Nhà phân tích hệ thống' },
+            'IAE': { title: 'Nghiên cứu & Sáng tạo', desc: 'Phù hợp: Nhà khoa học xã hội, Nhà nghiên cứu thị trường, Designer UX/UI' },
+            'IAS': { title: 'Khoa học xã hội & Giáo dục', desc: 'Phù hợp: Nhà tâm lý học, Nhà nghiên cứu giáo dục, Chuyên gia phát triển' },
+            'ISE': { title: 'Y tế & Tư vấn', desc: 'Phù hợp: Bác sĩ, Dược sĩ, Chuyên viên y tế cộng đồng' },
+            'AEI': { title: 'Sáng tạo nội dung & Marketing', desc: 'Phù hợp: Content creator, Marketing, Nhà thiết kế quảng cáo' },
+            'AES': { title: 'Nghệ thuật biểu diễn & Giảng dạy', desc: 'Phù hợp: Nghệ sĩ, Diễn viên, Giáo viên nghệ thuật' },
+            'ASE': { title: 'Truyền thông & Quan hệ công chúng', desc: 'Phù hợp: Nhà báo, MC, Chuyên viên PR' },
+            'SEI': { title: 'Quản lý nguồn nhân lực', desc: 'Phù hợp: HR Manager, Chuyên viên đào tạo, Tư vấn phát triển' },
+            'SEA': { title: 'Giáo dục & Đào tạo', desc: 'Phù hợp: Giáo viên, Giảng viên, Chuyên viên đào tạo doanh nghiệp' },
+            'SAI': { title: 'Chăm sóc sức khỏe cộng đồng', desc: 'Phù hợp: Y tá, Nhân viên xã hội, Tư vấn tâm lý' },
+            'EIR': { title: 'Quản lý dự án công nghệ', desc: 'Phù hợp: Project Manager IT, Giám đốc công nghệ, Business Analyst' },
+            'EIS': { title: 'Tư vấn & Phát triển kinh doanh', desc: 'Phù hợp: Tư vấn quản lý, Business Developer, Sales Manager' },
+            'EAS': { title: 'Kinh doanh & Marketing sáng tạo', desc: 'Phù hợp: Marketing Director, Event Manager, Brand Manager' },
+            'ECS': { title: 'Quản trị kinh doanh', desc: 'Phù hợp: Quản lý doanh nghiệp, CEO, Giám đốc điều hành' },
+            'CER': { title: 'Quản lý vận hành', desc: 'Phù hợp: Quản lý sản xuất, Logistics Manager, Supply Chain' },
+            'CEI': { title: 'Quản lý tài chính', desc: 'Phù hợp: Kế toán trưởng, Phân tích tài chính, Kiểm toán viên' },
+            'CSE': { title: 'Hành chính & Quản lý văn phòng', desc: 'Phù hợp: Trợ lý giám đốc, Office Manager, Thư ký' },
+            'CIE': { title: 'Phân tích dữ liệu & Thống kê', desc: 'Phù hợp: Data Analyst, Chuyên viên thống kê, QA/QC' }
+        };
+
+        function handleAnswer(questionId, value) {
+            state.answers[questionId] = value;
+            render();
+        }
+
+        function updateCareerGoal(field, value) {
+            state.careerGoals[field] = value;
+            render();
+        }
+
+        function calculateResults() {
+            const scores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+            const maxScores = { R: 25, I: 25, A: 25, S: 25, E: 25, C: 25 };
+            
+            questions.forEach(q => { 
+                if (state.answers[q.id]) {
+                    scores[q.category] += state.answers[q.id];
+                }
             });
 
-            // 🔥 THAY ĐỔI API URL CỦA BẠN Ở ĐÂY
-            const SHEETDB_API_URL = 'YOUR_SHEETDB_API_URL';
+            const percentageScores = {};
+            Object.keys(scores).forEach(key => {
+                percentageScores[key] = Math.round((scores[key] / maxScores[key]) * 100);
+            });
 
-            const questions = [
-                { id: 1, text: "Tôi thích làm việc với máy móc, dụng cụ, sửa chữa đồ vật.", category: "R" },
-                { id: 2, text: "Tôi thích tìm hiểu nguyên nhân của hiện tượng tự nhiên (ví dụ: tại sao mây mưa).", category: "R" },
-                { id: 3, text: "Tôi thích vẽ, làm đồ thủ công, thiết kế sáng tạo.", category: "R" },
-                { id: 4, text: "Tôi thích hướng dẫn và giúp đỡ bạn bè khi họ học.", category: "R" },
-                { id: 5, text: "Tôi thích thuyết trình, thuyết phục hoặc tổ chức sự kiện nhỏ.", category: "R" },
-                { id: 6, text: "Tôi thích làm việc theo quy tắc, sắp xếp giấy tờ hoặc lập danh sách.", category: "I" },
-                { id: 7, text: "Tôi vui khi tham gia lắp ráp đồ chơi, mô hình, hoặc sửa đồ trong nhà.", category: "I" },
-                { id: 8, text: "Tôi thích đọc sách khoa học, làm thí nghiệm nhỏ để khám phá.", category: "I" },
-                { id: 9, text: "Tôi cảm thấy vui khi tạo ra một bức tranh, bài hát hoặc câu chuyện.", category: "I" },
-                { id: 10, text: "Tôi thích làm việc nhóm để chăm sóc, hỗ trợ người khác.", category: "I" },
-                { id: 11, text: "Tôi muốn quản lý một dự án nhỏ hoặc bán hàng khi có dịp.", category: "A" },
-                { id: 12, text: "Tôi cảm thấy an tâm khi công việc rõ ràng, có quy trình.", category: "A" },
-                { id: 13, text: "Tôi thích các hoạt động ngoài trời, thể thao, kỹ thuật thực hành.", category: "A" },
-                { id: 14, text: "Tôi thích suy nghĩ, phân tích, tìm lời giải cho vấn đề.", category: "A" },
-                { id: 15, text: "Tôi muốn làm những việc liên quan đến nghệ thuật, sân khấu hoặc sáng tạo hình ảnh.", category: "A" },
-                { id: 16, text: "Tôi sẵn sàng lắng nghe và tư vấn khi người khác gặp khó khăn.", category: "S" },
-                { id: 17, text: "Tôi hay có ý tưởng bắt đầu một hoạt động hoặc dự án nhỏ.", category: "S" },
-                { id: 18, text: "Tôi thích làm công việc cần độ chính xác và theo hướng dẫn chi tiết.", category: "S" },
-                { id: 19, text: "Tôi hứng thú với nghề nghiệp cần kỹ năng thực hành (thợ, kỹ sư cơ bản).", category: "S" },
-                { id: 20, text: "Tôi thích nghiên cứu, đặt câu hỏi 'tại sao' và tìm bằng chứng.", category: "S" },
-                { id: 21, text: "Tôi thấy thích thú khi thiết kế trang trí, phối màu, hoặc sáng tạo hình ảnh.", category: "E" },
-                { id: 22, text: "Tôi thích tham gia hoạt động cộng đồng, giúp trẻ nhỏ hoặc người già.", category: "E" },
-                { id: 23, text: "Tôi tự tin khi phải thuyết phục mọi người làm theo ý mình.", category: "E" },
-                { id: 24, text: "Tôi thích công việc hành chính, sổ sách, lưu trữ tài liệu.", category: "E" },
-                { id: 25, text: "Tôi thấy thích khám phá công cụ kỹ thuật mới (điện, máy, robot cơ bản).", category: "E" },
-                { id: 26, text: "Tôi tò mò về cách mọi thứ hoạt động và muốn tìm hiểu sâu hơn.", category: "C" },
-                { id: 27, text: "Tôi muốn thử làm sản phẩm thủ công để trưng bày.", category: "C" },
-                { id: 28, text: "Tôi thích trao đổi, lắng nghe và giải bài toán cuộc sống của người khác.", category: "C" },
-                { id: 29, text: "Tôi có mong muốn thử lập một gian hàng hoặc bán sản phẩm nhỏ.", category: "C" },
-                { id: 30, text: "Tôi thích làm việc có trình tự, thực hiện theo danh sách công việc.", category: "C" }
-            ];
+            const chartData = Object.entries(scores).map(([key, value]) => ({
+                category: key,
+                name: categoryInfo[key].shortName,
+                score: value,
+                percentage: percentageScores[key],
+                color: categoryInfo[key].color,
+                colorDark: categoryInfo[key].colorDark
+            }));
 
-            const categoryInfo = {
-                R: { name: "Realistic - Thực tế", shortName: "Thực tế", color: "#3B82F6", icon: "🔧",
-                    description: "Bạn có khả năng làm việc với tay, thích hoạt động thực hành và kỹ thuật. Bạn phù hợp với các nghề như: Kỹ sư cơ khí, Thợ điện, Kiến trúc sư, Nông nghiệp, Thợ sửa chữa.",
-                    careers: "Kỹ sư, Thợ kỹ thuật, Kiến trúc sư" },
-                I: { name: "Investigative - Nghiên cứu", shortName: "Nghiên cứu", color: "#8B5CF6", icon: "🔬",
-                    description: "Bạn thích suy nghĩ, phân tích và tìm hiểu. Bạn phù hợp với các nghề như: Nhà khoa học, Bác sĩ, Lập trình viên, Nhà nghiên cứu, Kỹ sư phần mềm.",
-                    careers: "Nhà khoa học, Bác sĩ, Lập trình viên" },
-                A: { name: "Artistic - Nghệ thuật", shortName: "Nghệ thuật", color: "#EC4899", icon: "🎨",
-                    description: "Bạn có năng khiếu sáng tạo, thích nghệ thuật và thiết kế. Bạn phù hợp với các nghề như: Họa sĩ, Nhà thiết kế, Nhạc sĩ, Diễn viên, Kiến trúc sư nội thất.",
-                    careers: "Họa sĩ, Nhà thiết kế, Kiến trúc sư nội thất" },
-                S: { name: "Social - Xã hội", shortName: "Xã hội", color: "#10B981", icon: "👥",
-                    description: "Bạn thích làm việc với người khác, giúp đỡ và hỗ trợ. Bạn phù hợp với các nghề như: Giáo viên, Y tá, Tư vấn viên, Nhân viên xã hội, Chăm sóc khách hàng.",
-                    careers: "Giáo viên, Y tá, Tư vấn viên" },
-                E: { name: "Enterprising - Quản lý", shortName: "Quản lý", color: "#F59E0B", icon: "💼",
-                    description: "Bạn có khả năng lãnh đạo, thuyết phục và kinh doanh. Bạn phù hợp với các nghề như: Quản lý, Doanh nhân, Nhân viên bán hàng, Marketing, Chính trị gia.",
-                    careers: "Quản lý, Doanh nhân, Marketing" },
-                C: { name: "Conventional - Quy tắc", shortName: "Quy tắc", color: "#6366F1", icon: "📋",
-                    description: "Bạn thích làm việc có tổ chức, theo quy trình rõ ràng. Bạn phù hợp với các nghề như: Kế toán, Thư ký, Quản trị văn phòng, Thủ quỹ, Nhân viên hành chính.",
-                    careers: "Kế toán, Thư ký, Quản trị văn phòng" }
+            const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            const top3 = sortedScores.slice(0, 3);
+            const riasecCode = top3.map(item => item[0]).join('');
+            
+            const careerMatch = careerCombinations[riasecCode] || careerCombinations[riasecCode.substring(0,2) + sortedScores[3][0]] || null;
+
+            state.results = { 
+                scores: scores,
+                percentageScores: percentageScores,
+                chartData: chartData,
+                topCategory: sortedScores[0][0], 
+                topScore: sortedScores[0][1],
+                top3Categories: top3,
+                riasecCode: riasecCode,
+                careerMatch: careerMatch,
+                sortedScores: sortedScores 
+            };
+            state.page = 'results';
+            render();
+        }
+
+        async function saveToGoogleSheets(data, sheetName) {
+            if (SHEETDB_API_URL === 'YOUR_SHEETDB_API_URL') {
+                console.warn('Chưa cấu hình API');
+                return false;
+            }
+            try {
+                state.loading = true;
+                render();
+                const url = SHEETDB_API_URL + '?sheet=' + sheetName;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: [data] })
+                });
+                if (!response.ok) throw new Error('Failed');
+                return true;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra!');
+                return false;
+            } finally {
+                state.loading = false;
+                render();
+            }
+        }
+
+        async function handleGoalSubmit() {
+            const timestamp = new Date().toLocaleString('vi-VN');
+            const testData = {
+                Timestamp: timestamp,
+                Name: state.careerGoals.name,
+                Class: state.careerGoals.class,
+                R: state.results.scores.R,
+                I: state.results.scores.I,
+                A: state.results.scores.A,
+                S: state.results.scores.S,
+                E: state.results.scores.E,
+                C: state.results.scores.C,
+                RIASECCode: state.results.riasecCode,
+                TopCategory: categoryInfo[state.results.topCategory].name,
+                CareerMatch: state.results.careerMatch ? state.results.careerMatch.title : ''
+            };
+            const goalsData = {
+                Timestamp: timestamp,
+                Name: state.careerGoals.name,
+                Class: state.careerGoals.class,
+                Career: state.careerGoals.career,
+                Skills: state.careerGoals.skills,
+                OneYearPlan: state.careerGoals.oneYearPlan,
+                ParentEmail: state.careerGoals.parentEmail || 'Không có'
             };
 
-            const handleAnswer = (questionId, value) => {
-                setAnswers(prev => ({ ...prev, [questionId]: value }));
-            };
+            const testSaved = await saveToGoogleSheets(testData, 'Test Results');
+            const goalsSaved = await saveToGoogleSheets(goalsData, 'Career Goals');
 
-            const calculateResults = () => {
-                const scores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-                questions.forEach(q => { if (answers[q.id] === true) scores[q.category]++; });
+            if (testSaved && goalsSaved) {
+                alert('✅ Đã lưu thành công!');
+                state.page = 'intro';
+                state.answers = {};
+                state.results = null;
+                state.careerGoals = { name: '', class: '', career: '', skills: '', oneYearPlan: '', parentEmail: '' };
+                render();
+            }
+        }
 
-                const chartData = Object.entries(scores).map(([key, value]) => ({
-                    category: categoryInfo[key].shortName, score: value, fill: categoryInfo[key].color
-                }));
+        function isAllAnswered() {
+            return questions.every(q => state.answers[q.id] !== undefined);
+        }
 
-                const radarData = Object.entries(scores).map(([key, value]) => ({
-                    category: categoryInfo[key].shortName, value: value, fullMark: 5
-                }));
+        function isFormValid() {
+            return state.careerGoals.name && state.careerGoals.class && state.careerGoals.career && state.careerGoals.skills && state.careerGoals.oneYearPlan;
+        }
 
-                const sortedScores = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-                setResults({ scores, chartData, radarData, topCategory: sortedScores[0][0], topScore: sortedScores[0][1], sortedScores });
-                setPage('results');
-            };
-
-            const saveToGoogleSheets = async (data, sheetName) => {
-                if (SHEETDB_API_URL === 'YOUR_SHEETDB_API_URL') {
-                    console.warn('⚠️ Chưa cấu hình SheetDB API URL!');
-                    return false;
-                }
-                try {
-                    setLoading(true);
-                    const response = await fetch(`${SHEETDB_API_URL}?sheet=${sheetName}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ data: [data] })
-                    });
-                    if (!response.ok) throw new Error('Failed to save data');
-                    return true;
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi lưu dữ liệu!');
-                    return false;
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            const handleGoalSubmit = async () => {
-                const timestamp = new Date().toLocaleString('vi-VN');
-                const testData = {
-                    Timestamp: timestamp, Name: careerGoals.name, Class: careerGoals.class,
-                    R: results.scores.R, I: results.scores.I, A: results.scores.A,
-                    S: results.scores.S, E: results.scores.E, C: results.scores.C,
-                    TopCategory: categoryInfo[results.topCategory].name
-                };
-                const goalsData = {
-                    Timestamp: timestamp, Name: careerGoals.name, Class: careerGoals.class,
-                    Career: careerGoals.career, Skills: careerGoals.skills,
-                    OneYearPlan: careerGoals.oneYearPlan, ParentEmail: careerGoals.parentEmail || 'Không có'
-                };
-
-                const testSaved = await saveToGoogleSheets(testData, 'Test Results');
-                const goalsSaved = await saveToGoogleSheets(goalsData, 'Career Goals');
-
-                if (testSaved && goalsSaved) {
-                    alert('✅ Đã lưu thành công! Cảm ơn bạn.');
-                    setPage('intro');
-                    setAnswers({});
-                    setResults(null);
-                    setCareerGoals({ name: '', class: '', career: '', skills: '', oneYearPlan: '', parentEmail: '' });
-                }
-            };
-
-            const isAllAnswered = () => questions.every(q => answers[q.id] !== undefined);
-            const isFormValid = careerGoals.name && careerGoals.class && careerGoals.career && careerGoals.skills && careerGoals.oneYearPlan;
-
-            if (page === 'intro') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-                        <div className="absolute inset-0">
-                            <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-                            <div className="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+        function render() {
+            const root = document.getElementById('root');
+            
+            if (state.page === 'intro') {
+                root.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+                        <div class="absolute inset-0">
+                            <div class="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
                         </div>
-                        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-                            <div className="max-w-4xl w-full">
-                                <div className="text-center mb-12">
-                                    <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-4">RIASEC</h1>
-                                    <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Trắc nghiệm Hướng nghiệp</h2>
-                                    <p className="text-xl text-purple-200">Khám phá con đường sự nghiệp của bạn</p>
+                        <div class="relative z-10 min-h-screen flex items-center justify-center p-4">
+                            <div class="max-w-4xl w-full">
+                                <div class="text-center mb-12">
+                                    <h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-4">RIASEC</h1>
+                                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-3">Trắc nghiệm Hướng nghiệp</h2>
+                                    <p class="text-xl text-purple-200 mb-6">Khám phá con đường sự nghiệp của bạn</p>
+                                    <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 max-w-2xl mx-auto">
+                                        <p class="text-white text-sm">
+                                            ⭐ Đánh giá mức độ yêu thích của bạn với mỗi hoạt động<br>
+                                            📊 Hệ thống sẽ phân tích và đưa ra định hướng nghề nghiệp phù hợp
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8">
-                                    <button onClick={() => setPage('test')} className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 hover:from-purple-600 hover:via-pink-600 hover:to-blue-600 text-white font-bold py-5 px-8 rounded-2xl text-xl transition-all shadow-2xl">
+                                <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8">
+                                    <button onclick="state.page='test'; render();" class="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 hover:from-purple-600 hover:via-pink-600 hover:to-blue-600 text-white font-bold py-5 px-8 rounded-2xl text-xl transition-all shadow-2xl">
                                         Bắt đầu khám phá →
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                );
-            }
+                `;
+            } else if (state.page === 'test') {
+                const progress = (Object.keys(state.answers).length / questions.length) * 100;
+                const questionsHTML = questions.map(q => {
+                    const isAnswered = state.answers[q.id] !== undefined;
+                    const cardClass = 'bg-white/10 backdrop-blur-xl rounded-2xl border p-6 transition-all ' + (isAnswered ? 'border-green-400/50 shadow-lg' : 'border-white/20');
+                    
+                    const optionsHTML = likertScale.map(option => {
+                        const isSelected = state.answers[q.id] === option.value;
+                        const btnClass = 'likert-option flex-1 py-3 px-2 rounded-xl font-semibold text-sm transition-all ' + 
+                            (isSelected ? 'bg-gradient-to-r ' + option.color + ' text-white shadow-lg scale-105' : 'bg-white/10 text-white hover:bg-white/20 border border-white/20');
+                        
+                        return `
+                            <button onclick="handleAnswer(${q.id}, ${option.value})" class="${btnClass}" title="${option.label}">
+                                ${option.value}
+                            </button>
+                        `;
+                    }).join('');
+                    
+                    return `
+                        <div class="${cardClass}">
+                            <p class="text-white font-medium mb-4">
+                                <span class="text-purple-400 font-bold">Câu ${q.id}:</span> ${q.text}
+                            </p>
+                            <div class="mb-3">
+                                <div class="flex justify-between text-xs text-purple-200 mb-2">
+                                    <span>Rất không thích</span>
+                                    <span>Rất thích</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    ${optionsHTML}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
 
-            if (page === 'test') {
-                const progress = (Object.keys(answers).length / questions.length) * 100;
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
-                        <div className="max-w-4xl mx-auto">
-                            <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6 mb-6 sticky top-4">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-2xl font-bold text-white">Bài trắc nghiệm</h2>
-                                    <div className="text-right">
-                                        <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                                            {Object.keys(answers).length}/{questions.length}
+                root.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+                        <div class="max-w-4xl mx-auto">
+                            <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6 mb-6 sticky top-4 z-10">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h2 class="text-2xl font-bold text-white">Bài trắc nghiệm</h2>
+                                    <div class="text-right">
+                                        <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                                            ${Object.keys(state.answers).length}/${questions.length}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="w-full bg-white/10 rounded-full h-3">
-                                    <div className="h-3 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-full transition-all" style={{width: `${progress}%`}}></div>
+                                <div class="w-full bg-white/10 rounded-full h-3">
+                                    <div class="h-3 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-full transition-all" style="width: ${progress}%"></div>
                                 </div>
+                                <p class="text-center text-purple-200 text-sm mt-2">${progress.toFixed(0)}% hoàn thành</p>
                             </div>
-                            <div className="space-y-4">
-                                {questions.map(q => {
-                                    const isAnswered = answers[q.id] !== undefined;
-                                    return (
-                                        <div key={q.id} className={`bg-white/10 backdrop-blur-xl rounded-2xl border p-6 ${isAnswered ? 'border-green-400/50' : 'border-white/20'}`}>
-                                            <p className="text-white font-medium mb-4"><span className="text-purple-400">Câu {q.id}:</span> {q.text}</p>
-                                            <div className="flex gap-3">
-                                                <button onClick={() => handleAnswer(q.id, true)} className={`flex-1 py-3 rounded-xl font-semibold transition ${answers[q.id] === true ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                                                    ✓ Đúng
-                                                </button>
-                                                <button onClick={() => handleAnswer(q.id, false)} className={`flex-1 py-3 rounded-xl font-semibold transition ${answers[q.id] === false ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                                                    ✗ Không
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                            <div class="space-y-4">
+                                ${questionsHTML}
                             </div>
-                            <div className="sticky bottom-4 mt-8">
-                                <button onClick={calculateResults} disabled={!isAllAnswered()} className={`w-full py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-3 ${isAllAnswered() ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white shadow-2xl cursor-pointer' : 'bg-white/10 text-gray-400 cursor-not-allowed'}`}>
-                                    {isAllAnswered() ? '✨ Xem kết quả' : 'Vui lòng trả lời tất cả câu hỏi'}
+                            <div class="sticky bottom-4 mt-8">
+                                <button 
+                                    onclick="${isAllAnswered() ? 'calculateResults()' : ''}" 
+                                    ${!isAllAnswered() ? 'disabled' : ''}
+                                    class="w-full py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-3 ${isAllAnswered() ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white shadow-2xl cursor-pointer hover:scale-105 transition-all' : 'bg-white/10 text-gray-400 cursor-not-allowed'}"
+                                >
+                                    ${isAllAnswered() ? '✨ Xem kết quả' : '⏳ Vui lòng trả lời tất cả câu hỏi'}
                                 </button>
                             </div>
                         </div>
                     </div>
-                );
-            }
+                `;
+            } else if (state.page === 'results') {
+                const barsHTML = state.results.chartData.map(item => `
+                    <div class="bar-item">
+                        <div class="bar" style="--bar-color: ${item.color}; --bar-color-dark: ${item.colorDark}; height: ${(item.percentage)}%;">
+                            ${item.score}
+                        </div>
+                        <div class="text-center">
+                            <div class="text-white text-sm font-semibold">${item.name}</div>
+                            <div class="text-purple-200 text-xs">${item.percentage}%</div>
+                        </div>
+                    </div>
+                `).join('');
 
-            if (page === 'results') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
-                        <div className="max-w-6xl mx-auto">
-                            <div className="text-center mb-10">
-                                <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-2">Kết quả của bạn</h2>
+                const top3HTML = state.results.top3Categories.map((item, idx) => {
+                    const cat = item[0];
+                    const score = item[1];
+                    const badge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+                    return `
+                        <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-3xl">${badge}</span>
+                                <div>
+                                    <div class="text-white font-bold">${categoryInfo[cat].shortName}</div>
+                                    <div class="text-purple-200 text-sm">${score}/25 điểm (${state.results.percentageScores[cat]}%)</div>
+                                </div>
                             </div>
-                            <div className="bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 backdrop-blur-xl rounded-3xl border border-purple-400/30 p-8 mb-8">
-                                <div className="text-center mb-6">
-                                    <div className="text-6xl mb-4">{categoryInfo[results.topCategory].icon}</div>
-                                    <h3 className="text-3xl font-black text-white mb-2">{categoryInfo[results.topCategory].name}</h3>
-                                    <div className="inline-block bg-white/20 rounded-full px-6 py-2">
-                                        <span className="text-2xl font-bold text-white">{results.topScore}/5 điểm</span>
+                        </div>
+                    `;
+                }).join('');
+
+                const careerMatchHTML = state.results.careerMatch ? `
+                    <div class="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-xl rounded-3xl border border-yellow-400/30 p-8 mb-8">
+                        <div class="flex items-start gap-4">
+                            <div class="text-5xl">🎯</div>
+                            <div class="flex-1">
+                                <h4 class="text-2xl font-bold text-white mb-3">Định hướng nghề nghiệp của bạn</h4>
+                                <div class="bg-white/10 rounded-xl p-4 mb-4">
+                                    <div class="text-yellow-300 font-bold text-lg mb-2">Mã RIASEC: ${state.results.riasecCode}</div>
+                                    <div class="text-white text-xl font-bold mb-2">${state.results.careerMatch.title}</div>
+                                    <div class="text-purple-100">${state.results.careerMatch.desc}</div>
+                                </div>
+                                <p class="text-white leading-relaxed">
+                                    Tổ hợp tính cách <strong class="text-yellow-300">${state.results.riasecCode}</strong> của bạn cho thấy bạn phù hợp với nhóm ngành nghề trên. 
+                                    Hãy tìm hiểu thêm và rèn luyện các kỹ năng cần thiết để phát triển trong lĩnh vực này!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+
+                root.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+                        <div class="max-w-6xl mx-auto">
+                            <div class="text-center mb-10">
+                                <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-2">Kết quả của bạn</h2>
+                                <p class="text-purple-200">Phân tích tính cách và định hướng nghề nghiệp</p>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20 backdrop-blur-xl rounded-3xl border border-purple-400/30 p-8 mb-8">
+                                <div class="text-center mb-6">
+                                    <div class="text-6xl mb-4">${categoryInfo[state.results.topCategory].icon}</div>
+                                    <h3 class="text-3xl font-black text-white mb-2">${categoryInfo[state.results.topCategory].name}</h3>
+                                    <div class="inline-block bg-white/20 rounded-full px-6 py-2">
+                                        <span class="text-2xl font-bold text-white">${state.results.topScore}/25 điểm (${state.results.percentageScores[state.results.topCategory]}%)</span>
                                     </div>
                                 </div>
-                                <p className="text-white text-lg text-center mb-6">{categoryInfo[results.topCategory].description}</p>
-                                <div className="bg-white/10 rounded-2xl p-6">
-                                    <p className="text-purple-200 font-semibold text-center mb-3">Nghề nghiệp phù hợp:</p>
-                                    <p className="text-white text-xl font-bold text-center">{categoryInfo[results.topCategory].careers}</p>
+                                <p class="text-white text-lg text-center mb-6">${categoryInfo[state.results.topCategory].description}</p>
+                                
+                                <div class="bg-white/10 rounded-2xl p-6">
+                                    <h4 class="text-purple-200 font-semibold text-center mb-4">Top 3 nhóm tính cách của bạn:</h4>
+                                    <div class="grid md:grid-cols-3 gap-4">
+                                        ${top3HTML}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="grid md:grid-cols-2 gap-6 mb-8">
-                                <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6">
-                                    <h3 className="text-xl font-bold text-white mb-6">📊 Biểu đồ điểm số</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={results.chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="category" stroke="rgba(255,255,255,0.7)" />
-                                            <YAxis domain={[0, 5]} stroke="rgba(255,255,255,0.7)" />
-                                            <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', color: 'white' }} />
-                                            <Bar dataKey="score" radius={[8, 8, 0, 0]}>
-                                                {results.chartData.map((entry, index) => <Bar key={index} dataKey="score" fill={entry.fill} />)}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
+
+                            ${careerMatchHTML}
+
+                            <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6 mb-8">
+                                <h3 class="text-xl font-bold text-white mb-6 text-center">📊 Biểu đồ phân tích chi tiết</h3>
+                                <div class="bar-chart">
+                                    ${barsHTML}
                                 </div>
-                                <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-6">
-                                    <h3 className="text-xl font-bold text-white mb-6">🕸️ Biểu đồ Radar</h3>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <RadarChart data={results.radarData}>
-                                            <PolarGrid stroke="rgba(255,255,255,0.2)" />
-                                            <PolarAngleAxis dataKey="category" stroke="rgba(255,255,255,0.7)" />
-                                            <PolarRadiusAxis domain={[0, 5]} stroke="rgba(255,255,255,0.7)" />
-                                            <Radar name="Điểm số" dataKey="value" stroke="#EC4899" fill="#EC4899" fillOpacity={0.6} />
-                                        </RadarChart>
-                                    </ResponsiveContainer>
+                                <div class="mt-6 text-center text-purple-200 text-sm">
+                                    Điểm số tối đa mỗi nhóm: 25 điểm (5 câu × 5 điểm)
                                 </div>
                             </div>
-                            <button onClick={() => setPage('goals')} className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white font-bold py-5 rounded-2xl text-xl shadow-2xl">
+
+                            <div class="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-xl rounded-3xl border border-blue-400/30 p-8 mb-8">
+                                <div class="flex items-start gap-4">
+                                    <div class="text-4xl">💡</div>
+                                    <div class="flex-1">
+                                        <h4 class="text-2xl font-bold text-white mb-3">Lời khuyên từ chuyên gia</h4>
+                                        <p class="text-white leading-relaxed text-lg">
+                                            Kết quả trắc nghiệm cho thấy điểm mạnh của bạn thuộc nhóm <strong class="text-blue-300">${categoryInfo[state.results.topCategory].name}</strong>. 
+                                            Tổ hợp <strong class="text-blue-300">${state.results.riasecCode}</strong> của bạn đặc biệt phù hợp với các nghề nghiệp kết hợp giữa ${state.results.top3Categories.map(item => categoryInfo[item[0]].shortName.toLowerCase()).join(', ')}.
+                                            Hãy tìm hiểu thêm về các nghề nghiệp này và bắt đầu rèn luyện các kỹ năng cần thiết từ bây giờ!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onclick="state.page='goals'; render();" class="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 hover:from-purple-600 hover:via-pink-600 hover:to-blue-600 text-white font-bold py-5 rounded-2xl text-xl shadow-2xl transition-all hover:scale-105">
                                 🎯 Lập mục tiêu nghề nghiệp →
                             </button>
                         </div>
                     </div>
-                );
-            }
-
-            if (page === 'goals') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
-                        <div className="max-w-3xl mx-auto">
-                            <div className="text-center mb-10">
-                                <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 mb-2">Mục tiêu của tôi</h2>
+                `;
+            } else if (state.page === 'goals') {
+                const btnClass = 'w-full py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-3 transition-all ' + (isFormValid() && !state.loading ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white shadow-2xl cursor-pointer hover:scale-105' : 'bg-white/10 text-gray-400 cursor-not-allowed');
+                
+                root.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
+                        <div class="max-w-3xl mx-auto">
+                            <div class="text-center mb-10">
+                                <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 mb-2">Mục tiêu của tôi</h2>
+                                <p class="text-purple-200">Lập kế hoạch phát triển nghề nghiệp</p>
                             </div>
-                            <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 mb-6 space-y-6">
+                            <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 mb-6 space-y-6">
                                 <div>
-                                    <label className="block text-white font-bold mb-3">👤 Họ và tên <span className="text-pink-400">*</span></label>
-                                    <input type="text" value={careerGoals.name} onChange={(e) => setCareerGoals({...careerGoals, name: e.target.value})} className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300" placeholder="Nhập họ tên" />
+                                    <label class="block text-white font-bold mb-3">👤 Họ và tên <span class="text-pink-400">*</span></label>
+                                    <input type="text" value="${state.careerGoals.name}" oninput="updateCareerGoal('name', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Nhập họ tên của bạn" />
                                 </div>
                                 <div>
-                                    <label className="block text-white font-bold mb-3">🏫 Lớp <span className="text-pink-400">*</span></label>
-                                    <input type="text" value={careerGoals.class} onChange={(e) => setCareerGoals({...careerGoals, class: e.target.value})} className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300" placeholder="Ví dụ: 9A1" />
+                                    <label class="block text-white font-bold mb-3">🏫 Lớp <span class="text-pink-400">*</span></label>
+                                    <input type="text" value="${state.careerGoals.class}" oninput="updateCareerGoal('class', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: 9A1" />
                                 </div>
                                 <div>
-                                    <label className="block text-white font-bold mb-3">💼 Nghề/nhóm nghề thích <span className="text-pink-400">*</span></label>
-                                    <input type="text" value={careerGoals.career} onChange={(e) => setCareerGoals({...careerGoals, career: e.target.value})} className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300" placeholder="Ví dụ: Giáo viên, Kỹ sư..." />
+                                    <label class="block text-white font-bold mb-3">💼 Nghề/nhóm nghề bạn hướng tới <span class="text-pink-400">*</span></label>
+                                    <input type="text" value="${state.careerGoals.career}" oninput="updateCareerGoal('career', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: Kỹ sư phần mềm, Giáo viên..." />
                                 </div>
                                 <div>
-                                    <label className="block text-white font-bold mb-3">🎯 Kỹ năng cần rèn <span className="text-pink-400">*</span></label>
-                                    <input type="text" value={careerGoals.skills} onChange={(e) => setCareerGoals({...careerGoals, skills: e.target.value})} className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300" placeholder="Tiếng Anh, Toán, Vẽ..." />
+                                    <label class="block text-white font-bold mb-3">🎯 Kỹ năng cần rèn luyện <span class="text-pink-400">*</span></label>
+                                    <input type="text" value="${state.careerGoals.skills}" oninput="updateCareerGoal('skills', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: Tiếng Anh, Lập trình, Giao tiếp..." />
                                 </div>
                                 <div>
-                                    <label className="block text-white font-bold mb-3">📅 Kế hoạch 1 năm <span className="text-pink-400">*</span></label>
-                                    <textarea value={careerGoals.oneYearPlan} onChange={(e) => setCareerGoals({...career
+                                    <label class="block text-white font-bold mb-3">📅 Kế hoạch hành động trong 1 năm tới <span class="text-pink-400">*</span></label>
+                                    <textarea oninput="updateCareerGoal('oneYearPlan', this.value)" rows="5" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Mô tả chi tiết các bước bạn sẽ thực hiện...">${state.careerGoals.oneYearPlan}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-white font-bold mb-3">📧 Email liên hệ phụ huynh</label>
+                                    <input type="email" value="${state.careerGoals.parentEmail}" oninput="updateCareerGoal('parentEmail', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="email@example.com (không bắt buộc)" />
+                                </div>
+                            </div>
+                            <button onclick="${isFormValid() && !state.loading ? 'handleGoalSubmit()' : ''}" ${!isFormValid() || state.loading ? 'disabled' : ''} class="${btnClass}">
+                                ${state.loading ? '⏳ Đang lưu dữ liệu...' : isFormValid() ? '✅ Hoàn thành và gửi' : '⚠️ Vui lòng điền đầy đủ thông tin bắt buộc'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        render();
+    </script>
+</body>
+</html>
