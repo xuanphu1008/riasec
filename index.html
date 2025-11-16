@@ -152,7 +152,7 @@
 
         function updateCareerGoal(field, value) {
             state.careerGoals[field] = value;
-            render();
+            // KHÔNG render lại toàn bộ trang, chỉ cập nhật state
         }
 
         function calculateResults() {
@@ -232,15 +232,15 @@
                 Timestamp: timestamp,
                 Name: state.careerGoals.name,
                 Class: state.careerGoals.class,
-                R: state.results.scores.R,
-                I: state.results.scores.I,
-                A: state.results.scores.A,
-                S: state.results.scores.S,
-                E: state.results.scores.E,
-                C: state.results.scores.C,
+                R: state.results.scores.R.toString(),
+                I: state.results.scores.I.toString(),
+                A: state.results.scores.A.toString(),
+                S: state.results.scores.S.toString(),
+                E: state.results.scores.E.toString(),
+                C: state.results.scores.C.toString(),
                 RIASECCode: state.results.riasecCode,
                 TopCategory: categoryInfo[state.results.topCategory].name,
-                CareerMatch: state.results.careerMatch ? state.results.careerMatch.title : ''
+                CareerMatch: state.results.careerMatch ? state.results.careerMatch.title : 'Không xác định'
             };
             const goalsData = {
                 Timestamp: timestamp,
@@ -251,6 +251,9 @@
                 OneYearPlan: state.careerGoals.oneYearPlan,
                 ParentEmail: state.careerGoals.parentEmail || 'Không có'
             };
+
+            console.log('Test Data:', testData);
+            console.log('Goals Data:', goalsData);
 
             const testSaved = await saveToGoogleSheets(testData, 'Test Results');
             const goalsSaved = await saveToGoogleSheets(goalsData, 'Career Goals');
@@ -270,7 +273,13 @@
         }
 
         function isFormValid() {
-            return state.careerGoals.name && state.careerGoals.class && state.careerGoals.career && state.careerGoals.skills && state.careerGoals.oneYearPlan;
+            const valid = state.careerGoals.name.trim() !== '' && 
+                         state.careerGoals.class.trim() !== '' && 
+                         state.careerGoals.career.trim() !== '' && 
+                         state.careerGoals.skills.trim() !== '' && 
+                         state.careerGoals.oneYearPlan.trim() !== '';
+            console.log('Form valid check:', valid, state.careerGoals);
+            return valid;
         }
 
         function render() {
@@ -373,9 +382,12 @@
                     </div>
                 `;
             } else if (state.page === 'results') {
-                const barsHTML = state.results.chartData.map(item => `
+                const maxScore = Math.max(...state.results.chartData.map(item => item.score));
+                const barsHTML = state.results.chartData.map(item => {
+                    const heightPercent = maxScore > 0 ? (item.score / maxScore) * 100 : 0;
+                    return `
                     <div class="bar-item">
-                        <div class="bar" style="--bar-color: ${item.color}; --bar-color-dark: ${item.colorDark}; height: ${(item.percentage)}%;">
+                        <div class="bar" style="--bar-color: ${item.color}; --bar-color-dark: ${item.colorDark}; height: ${heightPercent}%;">
                             ${item.score}
                         </div>
                         <div class="text-center">
@@ -383,7 +395,8 @@
                             <div class="text-purple-200 text-xs">${item.percentage}%</div>
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
                 const top3HTML = state.results.top3Categories.map((item, idx) => {
                     const cat = item[0];
@@ -481,7 +494,16 @@
                     </div>
                 `;
             } else if (state.page === 'goals') {
-                const btnClass = 'w-full py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-3 transition-all ' + (isFormValid() && !state.loading ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white shadow-2xl cursor-pointer hover:scale-105' : 'bg-white/10 text-gray-400 cursor-not-allowed');
+                const updateButton = () => {
+                    const btn = document.getElementById('submitBtn');
+                    if (btn) {
+                        const valid = isFormValid();
+                        btn.disabled = !valid || state.loading;
+                        btn.className = 'w-full py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-3 transition-all ' + 
+                            (valid && !state.loading ? 'bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white shadow-2xl cursor-pointer hover:scale-105' : 'bg-white/10 text-gray-400 cursor-not-allowed');
+                        btn.innerHTML = state.loading ? '⏳ Đang lưu dữ liệu...' : valid ? '✅ Hoàn thành và gửi' : '⚠️ Vui lòng điền đầy đủ thông tin bắt buộc';
+                    }
+                };
                 
                 root.innerHTML = `
                     <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 py-8">
@@ -493,35 +515,69 @@
                             <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 mb-6 space-y-6">
                                 <div>
                                     <label class="block text-white font-bold mb-3">👤 Họ và tên <span class="text-pink-400">*</span></label>
-                                    <input type="text" value="${state.careerGoals.name}" oninput="updateCareerGoal('name', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Nhập họ tên của bạn" />
+                                    <input id="nameInput" type="text" value="${state.careerGoals.name}" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Nhập họ tên của bạn" />
                                 </div>
                                 <div>
                                     <label class="block text-white font-bold mb-3">🏫 Lớp <span class="text-pink-400">*</span></label>
-                                    <input type="text" value="${state.careerGoals.class}" oninput="updateCareerGoal('class', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: 9A1" />
+                                    <input id="classInput" type="text" value="${state.careerGoals.class}" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: 9A1" />
                                 </div>
                                 <div>
                                     <label class="block text-white font-bold mb-3">💼 Nghề/nhóm nghề bạn hướng tới <span class="text-pink-400">*</span></label>
-                                    <input type="text" value="${state.careerGoals.career}" oninput="updateCareerGoal('career', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: Kỹ sư phần mềm, Giáo viên..." />
+                                    <input id="careerInput" type="text" value="${state.careerGoals.career}" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: Kỹ sư phần mềm, Giáo viên..." />
                                 </div>
                                 <div>
                                     <label class="block text-white font-bold mb-3">🎯 Kỹ năng cần rèn luyện <span class="text-pink-400">*</span></label>
-                                    <input type="text" value="${state.careerGoals.skills}" oninput="updateCareerGoal('skills', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: Tiếng Anh, Lập trình, Giao tiếp..." />
+                                    <input id="skillsInput" type="text" value="${state.careerGoals.skills}" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Ví dụ: Tiếng Anh, Lập trình, Giao tiếp..." />
                                 </div>
                                 <div>
                                     <label class="block text-white font-bold mb-3">📅 Kế hoạch hành động trong 1 năm tới <span class="text-pink-400">*</span></label>
-                                    <textarea oninput="updateCareerGoal('oneYearPlan', this.value)" rows="5" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Mô tả chi tiết các bước bạn sẽ thực hiện...">${state.careerGoals.oneYearPlan}</textarea>
+                                    <textarea id="planInput" rows="5" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="Mô tả chi tiết các bước bạn sẽ thực hiện...">${state.careerGoals.oneYearPlan}</textarea>
                                 </div>
                                 <div>
                                     <label class="block text-white font-bold mb-3">📧 Email liên hệ phụ huynh</label>
-                                    <input type="email" value="${state.careerGoals.parentEmail}" oninput="updateCareerGoal('parentEmail', this.value)" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="email@example.com (không bắt buộc)" />
+                                    <input id="emailInput" type="email" value="${state.careerGoals.parentEmail}" class="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="email@example.com (không bắt buộc)" />
                                 </div>
                             </div>
-                            <button onclick="${isFormValid() && !state.loading ? 'handleGoalSubmit()' : ''}" ${!isFormValid() || state.loading ? 'disabled' : ''} class="${btnClass}">
-                                ${state.loading ? '⏳ Đang lưu dữ liệu...' : isFormValid() ? '✅ Hoàn thành và gửi' : '⚠️ Vui lòng điền đầy đủ thông tin bắt buộc'}
+                            <button id="submitBtn" class="w-full py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-3 transition-all bg-white/10 text-gray-400 cursor-not-allowed">
+                                ⚠️ Vui lòng điền đầy đủ thông tin bắt buộc
                             </button>
                         </div>
                     </div>
                 `;
+
+                // Gắn event listeners SAU KHI render
+                document.getElementById('nameInput').addEventListener('input', (e) => {
+                    updateCareerGoal('name', e.target.value);
+                    updateButton();
+                });
+                document.getElementById('classInput').addEventListener('input', (e) => {
+                    updateCareerGoal('class', e.target.value);
+                    updateButton();
+                });
+                document.getElementById('careerInput').addEventListener('input', (e) => {
+                    updateCareerGoal('career', e.target.value);
+                    updateButton();
+                });
+                document.getElementById('skillsInput').addEventListener('input', (e) => {
+                    updateCareerGoal('skills', e.target.value);
+                    updateButton();
+                });
+                document.getElementById('planInput').addEventListener('input', (e) => {
+                    updateCareerGoal('oneYearPlan', e.target.value);
+                    updateButton();
+                });
+                document.getElementById('emailInput').addEventListener('input', (e) => {
+                    updateCareerGoal('parentEmail', e.target.value);
+                    updateButton();
+                });
+                
+                document.getElementById('submitBtn').addEventListener('click', () => {
+                    if (isFormValid() && !state.loading) {
+                        handleGoalSubmit();
+                    }
+                });
+
+                updateButton();
             }
         }
 
